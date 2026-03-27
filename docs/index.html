@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elaboração de Horários EJA</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); min-height: 100vh; padding: 20px; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; border-radius: 10px; padding: 30px; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+        h1 { color: #333; margin-bottom: 10px; text-align: center; }
+        .subtitle { text-align: center; color: #666; margin-bottom: 30px; font-size: 14px; }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-weight: bold; color: #333; }
+        select { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; }
+        button { width: 100%; padding: 12px; background: #667eea; color: white; border: none; border-radius: 5px; font-size: 16px; font-weight: bold; cursor: pointer; margin-top: 20px; }
+        button:hover { background: #764ba2; }
+        .grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+        .dias-selector { display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px; margin-top: 10px; }
+        .dia-btn { padding: 10px; border: 2px solid #ddd; border-radius: 5px; cursor: pointer; font-weight: bold; text-align: center; background: white; transition: all 0.3s; }
+        .dia-btn.presencial { background: #7ec97e; color: white; border-color: #7ec97e; }
+        .dia-btn.nao-presencial { background: #f5d76e; color: #333; border-color: #f5d76e; }
+        .dia-btn:hover { transform: scale(1.05); }
+        table { width: 100%; border-collapse: collapse; margin-top: 30px; font-size: 12px; }
+        th, td { padding: 10px; text-align: center; border: 1px solid #ddd; }
+        th { background: #333; color: white; font-weight: bold; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        .bloco-col { background: #d4a5a5; font-weight: bold; text-align: left; }
+        .presencial { background: #7ec97e; color: white; cursor: move; user-select: none; padding: 8px; border-radius: 3px; }
+        .nao-presencial { background: #f5d76e; color: #333; cursor: move; user-select: none; padding: 8px; border-radius: 3px; }
+        .presencial:hover, .nao-presencial:hover { opacity: 0.8; }
+        .info-box { background: #e8f4f8; border-left: 4px solid #667eea; padding: 15px; margin-top: 20px; font-size: 13px; }
+        .drop-zone { min-height: 40px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Elaboração de Horários EJA</h1>
+        <p class="subtitle">Gerador automático de horários escolares conforme a Matriz por Área de Conhecimento (Páginas 8-20)</p>
+        
+        <div class="grid">
+            <div class="form-group">
+                <label for="segmento">Segmento:</label>
+                <select id="segmento" onchange="atualizarConfigs()">
+                    <option value="">Selecione...</option>
+                    <option value="2">2º Segmento</option>
+                    <option value="3">3º Segmento</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="matriz">Matriz:</label>
+                <select id="matriz" onchange="atualizarConfigs()">
+                    <option value="">Selecione...</option>
+                    <option value="sem">Sem EPT</option>
+                    <option value="com">Com EPT</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label for="config">Configuração:</label>
+                <select id="config">
+                    <option value="">Selecione...</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <label>Escolha quais dias serão PRESENCIAIS e quais serão NÃO PRESENCIAIS:</label>
+            <div class="dias-selector">
+                <button class="dia-btn presencial" onclick="toggleDia(this, 'seg')">SEGUNDA</button>
+                <button class="dia-btn presencial" onclick="toggleDia(this, 'ter')">TERÇA</button>
+                <button class="dia-btn presencial" onclick="toggleDia(this, 'qua')">QUARTA</button>
+                <button class="dia-btn presencial" onclick="toggleDia(this, 'qui')">QUINTA</button>
+                <button class="dia-btn presencial" onclick="toggleDia(this, 'sex')">SEXTA</button>
+            </div>
+            <p style="font-size: 12px; color: #666; margin-top: 10px;">Clique nos dias para alternar entre Presencial (Verde) e Não Presencial (Amarelo)</p>
+        </div>
+        
+        <button onclick="gerarHorario()">Gerar Horário</button>
+        
+        <div id="resultado"></div>
+        
+        <div class="info-box" id="infoBox" style="display:none;">
+            <strong>💡 Dica:</strong> Você pode arrastar e soltar as disciplinas entre os dias da semana para reorganizar o horário conforme necessário.
+            <br><strong>Cores:</strong> <span style="background: #7ec97e; color: white; padding: 2px 6px; border-radius: 3px;">Verde = Presencial</span> 
+            <span style="background: #f5d76e; color: #333; padding: 2px 6px; border-radius: 3px; margin-left: 10px;">Amarelo = Não Presencial</span>
+        </div>
+    </div>
+
+    <script>
+        let horariosGerados = [];
+        let diasConfig = {
+            seg: true,
+            ter: true,
+            qua: true,
+            qui: true,
+            sex: true
+        };
+
+        const configs2sem = [
+            { label: "Todos os dias com atividades presenciais", value: 0 },
+            { label: "1 dia com atividades não presenciais", value: 1 },
+            { label: "2 dias com atividades não presenciais", value: 2 }
+        ];
+
+        const configs2com = [
+            { label: "Todos os dias com atividades presenciais", value: 0 },
+            { label: "1 dia com atividades não presenciais", value: 1 },
+            { label: "2 dias com atividades não presenciais", value: 2 }
+        ];
+
+        const configs3sem = [
+            { label: "Todos os dias com atividades presenciais", value: 0 },
+            { label: "1 dia com atividades não presenciais", value: 1 },
+            { label: "2 dias com atividades não presenciais", value: 2 },
+            { label: "3 dias com atividades não presenciais", value: 3 }
+        ];
+
+        // 2º SEGMENTO SEM EPT
+        const horarios2SemEPT = {
+            0: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS", ter: "LINGUAGENS", qua: "LINGUAGENS", qui: "LINGUAGENS", sex: "LINGUAGENS" },
+                { bloco: "BLOCO II", seg: "MATEMÁTICA", ter: "MATEMÁTICA", qua: "MATEMÁTICA", qui: "MATEMÁTICA", sex: "MATEMÁTICA" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS", ter: "EDUCAÇÃO FÍSICA", qua: "CIÊNCIAS", qui: "CIÊNCIAS", sex: "FMT" },
+                { bloco: "BLOCO IV", seg: "HUMANAS", ter: "HUMANAS", qua: "HUMANAS", qui: "PROJETOS", sex: "HUMANAS/RELIGIOSO" }
+            ],
+            1: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS", ter: "LINGUAGENS", qua: "LINGUAGENS", qui: "LINGUAGENS", sex: "LINGUAGENS" },
+                { bloco: "BLOCO II", seg: "MATEMÁTICA", ter: "MATEMÁTICA", qua: "MATEMÁTICA", qui: "MATEMÁTICA", sex: "MATEMÁTICA" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS", ter: "EDUCAÇÃO FÍSICA", qua: "CIÊNCIAS", qui: "CIÊNCIAS", sex: "FMT" },
+                { bloco: "BLOCO IV", seg: "HUMANAS", ter: "HUMANAS", qua: "HUMANAS", qui: "PROJETOS", sex: "HUMANAS/RELIGIOSO" }
+            ],
+            2: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS", ter: "LINGUAGENS", qua: "LINGUAGENS", qui: "LINGUAGENS", sex: "LINGUAGENS" },
+                { bloco: "BLOCO II", seg: "MATEMÁTICA", ter: "MATEMÁTICA", qua: "MATEMÁTICA", qui: "MATEMÁTICA", sex: "MATEMÁTICA" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS", ter: "EDUCAÇÃO FÍSICA", qua: "CIÊNCIAS", qui: "CIÊNCIAS", sex: "FMT/EDUCAÇÃO FÍSICA" },
+                { bloco: "BLOCO IV", seg: "HUMANAS", ter: "HUMANAS", qua: "HUMANAS", qui: "PROJETOS", sex: "HUMANAS/RELIGIOSO" }
+            ]
+        };
+
+        // 2º SEGMENTO COM EPT
+        const horarios2ComEPT = {
+            0: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS", ter: "LINGUAGENS", qua: "LINGUAGENS", qui: "LINGUAGENS", sex: "LINGUAGENS/RELIGIOSO" },
+                { bloco: "BLOCO II", seg: "MATEMÁTICA", ter: "EDUCAÇÃO FÍSICA", qua: "MATEMÁTICA", qui: "MATEMÁTICA", sex: "MATEMÁTICA" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS", ter: "CIÊNCIAS", qua: "CIÊNCIAS", qui: "CIÊNCIAS", sex: "CIÊNCIAS" },
+                { bloco: "BLOCO IV", seg: "QUALIFICAÇÃO", ter: "QUALIFICAÇÃO", qua: "HUMANAS", qui: "HUMANAS", sex: "HUMANAS" }
+            ],
+            1: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS", ter: "LINGUAGENS", qua: "LINGUAGENS", qui: "LINGUAGENS", sex: "LINGUAGENS/RELIGIOSO" },
+                { bloco: "BLOCO II", seg: "MATEMÁTICA", ter: "EDUCAÇÃO FÍSICA", qua: "MATEMÁTICA", qui: "MATEMÁTICA", sex: "MATEMÁTICA" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS", ter: "HUMANAS P1", qua: "CIÊNCIAS", qui: "CIÊNCIAS", sex: "CIÊNCIAS" },
+                { bloco: "BLOCO IV", seg: "QUALIFICAÇÃO", ter: "QUALIFICAÇÃO", qua: "HUMANAS P2", qui: "HUMANAS P2", sex: "HUMANAS P2" }
+            ],
+            2: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS", ter: "LINGUAGENS", qua: "LINGUAGENS", qui: "LINGUAGENS", sex: "LINGUAGENS/RELIGIOSO" },
+                { bloco: "BLOCO II", seg: "MATEMÁTICA", ter: "EDUCAÇÃO FÍSICA", qua: "MATEMÁTICA", qui: "MATEMÁTICA", sex: "MATEMÁTICA" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS", ter: "HUMANAS P1", qua: "CIÊNCIAS", qui: "CIÊNCIAS", sex: "CIÊNCIAS" },
+                { bloco: "BLOCO IV", seg: "QUALIFICAÇÃO", ter: "QUALIFICAÇÃO", qua: "HUMANAS P2", qui: "HUMANAS P2", sex: "HUMANAS P2" }
+            ]
+        };
+
+        // 3º SEGMENTO SEM EPT - CORRIGIDO BLOCO II
+        const horarios3SemEPT = {
+            0: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS E SUAS TECNOLOGIAS", ter: "LINGUAGENS E SUAS TECNOLOGIAS / ITINERÁRIO FORMATIVO DE LINGUAGENS", qua: "LINGUAGENS E SUAS TECNOLOGIAS", qui: "LINGUAGENS E SUAS TECNOLOGIAS", sex: "LINGUAGENS E SUAS TECNOLOGIAS" },
+                { bloco: "BLOCO II", seg: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", ter: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS / ITINERÁRIO FORMATIVO DE CIÊNCIAS HUMANAS", qua: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", qui: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 1) / ITINERÁRIO FORMATIVO DE CIÊNCIAS DA NATUREZA", sex: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 1)" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 2)", ter: "MATEMÁTICA E SUAS TECNOLOGIAS", qua: "MATEMÁTICA E SUAS TECNOLOGIAS / ITINERÁRIO FORMATIVO DE MATEMÁTICA", qui: "EDUCAÇÃO FÍSICA", sex: "MATEMÁTICA E SUAS TECNOLOGIAS" }
+            ],
+            1: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS E SUAS TECNOLOGIAS", ter: "LINGUAGENS E SUAS TECNOLOGIAS / ITINERÁRIO FORMATIVO DE LINGUAGENS", qua: "LINGUAGENS E SUAS TECNOLOGIAS", qui: "LINGUAGENS E SUAS TECNOLOGIAS", sex: "LINGUAGENS E SUAS TECNOLOGIAS" },
+                { bloco: "BLOCO II", seg: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", ter: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS / ITINERÁRIO FORMATIVO DE CIÊNCIAS HUMANAS", qua: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", qui: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 1) / ITINERÁRIO FORMATIVO DE CIÊNCIAS DA NATUREZA", sex: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 2)", ter: "MATEMÁTICA E SUAS TECNOLOGIAS", qua: "MATEMÁTICA E SUAS TECNOLOGIAS / ITINERÁRIO FORMATIVO DE MATEMÁTICA", qui: "EDUCAÇÃO FÍSICA", sex: "MATEMÁTICA E SUAS TECNOLOGIAS" }
+            ],
+            2: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS E SUAS TECNOLOGIAS", ter: "LINGUAGENS E SUAS TECNOLOGIAS / ITINERÁRIO FORMATIVO DE LINGUAGENS", qua: "LINGUAGENS E SUAS TECNOLOGIAS", qui: "LINGUAGENS E SUAS TECNOLOGIAS", sex: "LINGUAGENS E SUAS TECNOLOGIAS" },
+                { bloco: "BLOCO II", seg: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", ter: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS / ITINERÁRIO FORMATIVO DE CIÊNCIAS HUMANAS", qua: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", qui: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 1) / ITINERÁRIO FORMATIVO DE CIÊNCIAS DA NATUREZA", sex: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 1)" },
+                { bloco: "BLOCO III", seg: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 2)", ter: "MATEMÁTICA E SUAS TECNOLOGIAS", qua: "MATEMÁTICA E SUAS TECNOLOGIAS / EDUCAÇÃO FÍSICA", qui: "EDUCAÇÃO FÍSICA / CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 2)", sex: "MATEMÁTICA E SUAS TECNOLOGIAS" }
+            ],
+            3: [
+                { bloco: "BLOCO I", seg: "LINGUAGENS E SUAS TECNOLOGIAS", ter: "LINGUAGENS E SUAS TECNOLOGIAS / ITINERÁRIO FORMATIVO DE LINGUAGENS", qua: "LINGUAGENS E SUAS TECNOLOGIAS", qui: "LINGUAGENS E SUAS TECNOLOGIAS", sex: "LINGUAGENS E SUAS TECNOLOGIAS" },
+                { bloco: "BLOCO II", seg: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", ter: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS / ITINERÁRIO FORMATIVO DE CIÊNCIAS HUMANAS", qua: "CIÊNCIAS HUMANAS E SOCIAIS APLICADAS", qui: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 1) / ITINERÁRIO FORMATIVO DE CIÊNCIAS DA NATUREZA", sex: "CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 1)" },
+                { bloco: "BLOCO III", seg: "MATEMÁTICA / ITINERÁRIO DE MATEMÁTICA", ter: "MATEMÁTICA E SUAS TECNOLOGIAS", qua: "MATEMÁTICA E SUAS TECNOLOGIAS / EDUCAÇÃO FÍSICA", qui: "EDUCAÇÃO FÍSICA / CIÊNCIAS DA NATUREZA E SUAS TECNOLOGIAS (PARTE 2)", sex: "MATEMÁTICA E SUAS TECNOLOGIAS" }
+            ]
+        };
+
+        function toggleDia(btn, dia) {
+            diasConfig[dia] = !diasConfig[dia];
+            btn.classList.toggle('presencial');
+            btn.classList.toggle('nao-presencial');
+        }
+
+        function atualizarConfigs() {
+            const segmento = document.getElementById('segmento').value;
+            const matriz = document.getElementById('matriz').value;
+            const configSelect = document.getElementById('config');
+            configSelect.innerHTML = '<option value="">Selecione...</option>';
+            
+            if (!segmento || !matriz) return;
+
+            let configs;
+            if (segmento === '2' && matriz === 'sem') configs = configs2sem;
+            else if (segmento === '2' && matriz === 'com') configs = configs2com;
+            else if (segmento === '3' && matriz === 'sem') configs = configs3sem;
+            else return;
+
+            configs.forEach(c => {
+                const option = document.createElement('option');
+                option.value = c.value;
+                option.textContent = c.label;
+                configSelect.appendChild(option);
+            });
+        }
+
+        function gerarHorario() {
+            const segmento = document.getElementById('segmento').value;
+            const matriz = document.getElementById('matriz').value;
+            const config = document.getElementById('config').value;
+            
+            if (!segmento || !matriz || config === '') {
+                alert('Preencha todos os campos!');
+                return;
+            }
+
+            let horarios;
+            if (segmento === '2' && matriz === 'sem') {
+                horarios = horarios2SemEPT[config];
+            } else if (segmento === '2' && matriz === 'com') {
+                horarios = horarios2ComEPT[config];
+            } else if (segmento === '3' && matriz === 'sem') {
+                horarios = horarios3SemEPT[config];
+            } else if (segmento === '3' && matriz === 'com') {
+                alert('3º Segmento com EPT não disponível neste momento');
+                return;
+            } else {
+                alert('Configuração não disponível');
+                return;
+            }
+
+            horariosGerados = JSON.parse(JSON.stringify(horarios));
+            renderizarTabela();
+            document.getElementById('infoBox').style.display = 'block';
+        }
+
+        function renderizarTabela() {
+            let headerRow = '<tr><th>BLOCO</th>';
+            const dias = ['seg', 'ter', 'qua', 'qui', 'sex'];
+            const diasNomes = ['SEGUNDA', 'TERÇA', 'QUARTA', 'QUINTA', 'SEXTA'];
+            
+            dias.forEach((dia, idx) => {
+                const tipo = diasConfig[dia] ? 'PRESENCIAL' : 'NÃO PRESENCIAL';
+                headerRow += `<th>${diasNomes[idx]}<br>(${tipo})</th>`;
+            });
+            headerRow += '</tr>';
+
+            let html = '<table>' + headerRow;
+            
+            horariosGerados.forEach((h, idx) => {
+                html += `<tr><td class="bloco-col">${h.bloco}</td>`;
+                dias.forEach(dia => {
+                    const presencial = diasConfig[dia];
+                    const classe = presencial ? 'presencial' : 'nao-presencial';
+                    html += `<td ondrop="soltar(event, ${idx}, '${dia}')" ondragover="permitirSoltar(event)" class="drop-zone">
+                        <div draggable="true" ondragstart="arrastar(event, ${idx}, '${dia}')" class="${classe}">${h[dia]}</div>
+                    </td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</table>';
+            document.getElementById('resultado').innerHTML = html;
+        }
+
+        function arrastar(e, blocoIdx, dia) {
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', JSON.stringify({ blocoIdx, dia }));
+        }
+
+        function permitirSoltar(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+        }
+
+        function soltar(e, blocoIdx, diaDestino) {
+            e.preventDefault();
+            const data = JSON.parse(e.dataTransfer.getData('text/plain'));
+            const { blocoIdx: srcIdx, dia: srcDia } = data;
+            
+            const temp = horariosGerados[blocoIdx][diaDestino];
+            horariosGerados[blocoIdx][diaDestino] = horariosGerados[srcIdx][srcDia];
+            horariosGerados[srcIdx][srcDia] = temp;
+            
+            renderizarTabela();
+        }
+    </script>
+</body>
+</html>
