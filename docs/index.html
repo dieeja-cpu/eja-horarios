@@ -31,6 +31,40 @@
         .presencial:hover, .nao-presencial:hover { opacity: 0.8; }
         .info-box { background: #e8f4f8; border-left: 4px solid #667eea; padding: 15px; margin-top: 20px; font-size: 13px; }
         .drop-zone { min-height: 40px; }
+        
+        /* Mobile Responsivo */
+        @media (max-width: 768px) {
+            body { padding: 10px; }
+            .container { padding: 15px; border-radius: 8px; }
+            h1 { font-size: 24px; margin-bottom: 8px; }
+            .subtitle { font-size: 13px; margin-bottom: 20px; }
+            .grid { grid-template-columns: 1fr; gap: 15px; }
+            select { padding: 12px; font-size: 16px; }
+            label { font-size: 15px; margin-bottom: 6px; }
+            button { padding: 14px; font-size: 16px; margin-top: 15px; }
+            .dias-selector { grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 12px; }
+            .dia-btn { padding: 12px 8px; font-size: 12px; min-height: 50px; display: flex; align-items: center; justify-content: center; }
+            table { font-size: 11px; margin-top: 20px; }
+            th, td { padding: 8px 4px; }
+            .bloco-col { font-size: 11px; }
+            .presencial, .nao-presencial { padding: 6px; font-size: 11px; }
+            .info-box { font-size: 12px; padding: 12px; }
+        }
+        
+        @media (max-width: 480px) {
+            body { padding: 8px; }
+            .container { padding: 12px; }
+            h1 { font-size: 20px; }
+            .subtitle { font-size: 12px; }
+            select { padding: 12px; font-size: 16px; }
+            label { font-size: 14px; }
+            button { padding: 14px; font-size: 15px; }
+            .dias-selector { grid-template-columns: repeat(5, 1fr); gap: 6px; }
+            .dia-btn { padding: 10px 6px; font-size: 11px; min-height: 45px; }
+            table { font-size: 10px; }
+            th, td { padding: 6px 3px; }
+            .presencial, .nao-presencial { padding: 5px; font-size: 10px; }
+        }
     </style>
 </head>
 <body>
