@@ -1,0 +1,14 @@
+{
+  "name": "eja-horarios",
+  "version": "1.0.0",
+  "description": "Gerador de Horários EJA",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "vite": "^7.1.9"
+  }
+}
